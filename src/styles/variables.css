@@ -1,0 +1,48 @@
+:root {
+  /* Editorial / Neobrutalist Theme Colors */
+  --color-bg: #e2e6e9;
+  --color-surface: #ffffff;
+  --color-surface-soft: #f4f6f8;
+  --color-border: #0f172a;
+  
+  --color-primary: #0f1f3d; /* Dark Navy for active letters and headers */
+  --color-accent: #2563eb;  /* Bold Blue accent for underlines & action buttons */
+  --color-accent-hover: #1d4ed8;
+
+  --color-text: #0f172a;
+  --color-text-muted: #52616b;
+  --color-text-light: #89969f;
+
+  /* Game Results Colors */
+  --color-success: #15803d; /* Rich Green for correct */
+  --color-error: #dc2626;   /* Red for wrong */
+  --color-warning: #d97706; /* Amber for passed */
+  --color-pending: #d0d9dd; /* Pale grayish-cyan for pending cells */
+
+  /* Typography */
+  --font-serif: 'Playfair Display', Georgia, 'Times New Roman', serif;
+  --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'Space Mono', monospace;
+
+  /* Borders & Shadows */
+  --border-thick: 1.5px solid #0f172a;
+  --border-bold: 2px solid #0f172a;
+  --shadow-offset-blue: 4px 4px 0px #2563eb;
+  --shadow-offset-black: 3px 3px 0px #0f172a;
+  --shadow-subtle: 0 4px 12px rgba(15, 23, 42, 0.05);
+
+  /* Spacing */
+  --spacing-1: 0.25rem;
+  --spacing-2: 0.5rem;
+  --spacing-3: 0.75rem;
+  --spacing-4: 1rem;
+  --spacing-5: 1.25rem;
+  --spacing-6: 1.5rem;
+  --spacing-8: 2rem;
+  --spacing-10: 2.5rem;
+  --spacing-12: 3rem;
+
+  --radius-none: 0px;
+  --radius-sm: 2px;
+  --radius-md: 4px;
+}
