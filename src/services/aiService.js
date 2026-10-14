@@ -35,14 +35,14 @@ export const selectLetters = (questionCount, lang = "tr") => {
 const ERROR_MESSAGES = {
   tr: {
     apiKeyMissing:
-      "API anahtarı bulunamadı. Lütfen .env dosyasına geçerli bir API anahtarı ekleyin.",
+      "OpenRouter API anahtarı bulunamadı. Lütfen .env dosyasındaki VITE_OPENROUTER_API_KEY değerini kontrol edin.",
     invalidFormat: "Yapay zeka yanıtı beklenen formatta değil. Lütfen tekrar deneyin.",
     networkError: "Sunucuya bağlanılamadı. İnternet bağlantınızı kontrol edin.",
     apiError: "Yapay zeka servisi şu anda yanıt veremiyor. Lütfen daha sonra tekrar deneyin.",
   },
   en: {
     apiKeyMissing:
-      "API key not found. Please add a valid key to your .env file.",
+      "OpenRouter API key not found. Please check VITE_OPENROUTER_API_KEY in your .env file.",
     invalidFormat: "AI response is not in the expected format. Please try again.",
     networkError: "Could not connect to server. Check your internet connection.",
     apiError: "AI service is currently unavailable. Please try again later.",
@@ -90,7 +90,6 @@ Format:
 const sanitizeText = (text) => {
   if (!text) return "";
   let cleaned = String(text).trim();
-  // Strip outer quotes if any
   cleaned = cleaned.replace(/^["'«»“”„]+|["'«»“”„]+$/g, "").trim();
   return cleaned;
 };
@@ -121,12 +120,11 @@ const parseAIResponse = (responseText) => {
   return JSON.parse(jsonStr);
 };
 
-const validateAndSanitizeData = (data, expectedLetters, lang) => {
+const validateAndSanitizeData = (data, expectedLetters) => {
   if (!Array.isArray(data)) {
     throw new Error("Response is not an array");
   }
 
-  const locale = lang === "tr" ? "tr-TR" : "en-US";
   const sanitized = [];
 
   for (let i = 0; i < expectedLetters.length; i++) {
@@ -143,7 +141,6 @@ const validateAndSanitizeData = (data, expectedLetters, lang) => {
       ? item.aliases.map((a) => sanitizeText(a)).filter(Boolean)
       : [];
 
-    // Ensure the letter matches expected sequence
     sanitized.push({
       letter: expectedLetter,
       question: cleanQuestion,
@@ -156,81 +153,10 @@ const validateAndSanitizeData = (data, expectedLetters, lang) => {
 };
 
 // ==========================================
-// PROVIDER-SPECIFIC API CALLS
+// OPENROUTER API CALL (ONLY openai/gpt-6-luna)
 // ==========================================
 
-const callGroqAPI = async (prompt, apiKey, model) => {
-  const response = await fetch(AI_PROVIDERS.groq.apiUrl, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: model,
-      messages: [
-        {
-          role: "system",
-          content:
-            "You are a precise JSON trivia generator for the quiz game Parolla. You ONLY return a valid JSON array matching the exact requested schema, with no markdown fences and no extra text.",
-        },
-        {
-          role: "user",
-          content: prompt,
-        },
-      ],
-      temperature: 0.4,
-      max_tokens: 4096,
-    }),
-  });
-
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
-    console.error("Groq API Error:", errorData);
-    throw new Error("API_ERROR");
-  }
-
-  const result = await response.json();
-  return result.choices?.[0]?.message?.content;
-};
-
-const callGeminiAPI = async (prompt, apiKey, model) => {
-  const url = `${AI_PROVIDERS.gemini.apiUrl}/${model}:generateContent?key=${apiKey}`;
-
-  const response = await fetch(url, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      contents: [
-        {
-          parts: [
-            {
-              text: `You are a precise JSON trivia generator for the quiz game Parolla. You ONLY output a valid JSON array matching the exact requested schema, with no markdown fences and no conversational text.\n\n${prompt}`,
-            },
-          ],
-        },
-      ],
-      generationConfig: {
-        temperature: 0.4,
-        maxOutputTokens: 4096,
-        responseMimeType: "application/json",
-      },
-    }),
-  });
-
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
-    console.error("Gemini API Error:", errorData);
-    throw new Error("API_ERROR");
-  }
-
-  const result = await response.json();
-  return result.candidates?.[0]?.content?.parts?.[0]?.text;
-};
-
-const callOpenRouterAPI = async (prompt, apiKey, model) => {
+const callOpenRouterAPI = async (prompt, apiKey) => {
   const response = await fetch(AI_PROVIDERS.openrouter.apiUrl, {
     method: "POST",
     headers: {
@@ -240,7 +166,7 @@ const callOpenRouterAPI = async (prompt, apiKey, model) => {
       "X-Title": "Parolla AI Quiz Game",
     },
     body: JSON.stringify({
-      model: model,
+      model: ACTIVE_MODEL, // strictly "openai/gpt-6-luna"
       messages: [
         {
           role: "system",
@@ -253,7 +179,10 @@ const callOpenRouterAPI = async (prompt, apiKey, model) => {
         },
       ],
       temperature: 0.4,
-      max_tokens: 4096,
+      max_tokens: 2048,
+      provider: {
+        allow_fallbacks: false, // Prevents OpenRouter from silently switching or routing to other models!
+      },
     }),
   });
 
@@ -268,19 +197,9 @@ const callOpenRouterAPI = async (prompt, apiKey, model) => {
 };
 
 // Helper to execute a single prompt for a chunk of letters
-const fetchLettersBatch = async (topic, lang, letters, provider, apiKey, model, errorMsgs) => {
+const fetchLettersBatch = async (topic, lang, letters, apiKey, errorMsgs) => {
   const prompt = createPromptForLetters(topic, lang, letters);
-  let rawResponse;
-
-  if (ACTIVE_PROVIDER === "openrouter") {
-    rawResponse = await callOpenRouterAPI(prompt, apiKey, model);
-  } else if (ACTIVE_PROVIDER === "groq") {
-    rawResponse = await callGroqAPI(prompt, apiKey, model);
-  } else if (ACTIVE_PROVIDER === "gemini") {
-    rawResponse = await callGeminiAPI(prompt, apiKey, model);
-  } else {
-    throw new Error(`Unknown provider: ${ACTIVE_PROVIDER}`);
-  }
+  const rawResponse = await callOpenRouterAPI(prompt, apiKey);
 
   if (!rawResponse) {
     throw new Error(errorMsgs.apiError);
@@ -294,7 +213,7 @@ const fetchLettersBatch = async (topic, lang, letters, provider, apiKey, model, 
     throw new Error(errorMsgs.invalidFormat);
   }
 
-  return validateAndSanitizeData(parsed, letters, lang);
+  return validateAndSanitizeData(parsed, letters);
 };
 
 // ==========================================
@@ -306,8 +225,7 @@ export const generateQuestions = async (
   lang = "tr",
   questionCount = 10
 ) => {
-  const provider = getActiveProvider();
-  const apiKey = import.meta.env[provider.envKey];
+  const apiKey = import.meta.env[AI_PROVIDERS.openrouter.envKey];
   const errorMsgs = ERROR_MESSAGES[lang] || ERROR_MESSAGES.en;
 
   // Check for API key
@@ -317,23 +235,21 @@ export const generateQuestions = async (
 
   // 1. Determine exactly which letters in alphabetical order
   const targetLetters = selectLetters(questionCount, lang);
-  console.log(`=== Generating questions for ${targetLetters.length} letters: ${targetLetters.join(', ')} ===`);
+  console.log(`=== Generating questions using ${ACTIVE_MODEL} for ${targetLetters.length} letters: ${targetLetters.join(', ')} ===`);
 
   try {
-    // 2. Smart Chunking: If there are more than 14 letters (e.g. 20 or full alphabet 26-28),
-    // split into two parallel requests to prevent AI hallucination and output degradation!
     let allQuestions = [];
 
+    // If there are more than 14 letters (e.g. 20 or full alphabet 26-28),
+    // split into two parallel requests
     if (targetLetters.length > 14) {
       const mid = Math.ceil(targetLetters.length / 2);
       const batch1 = targetLetters.slice(0, mid);
       const batch2 = targetLetters.slice(mid);
 
-      console.log(`[Chunking] Running 2 parallel batches: [${batch1.join(',')}] & [${batch2.join(',')}]`);
-
       const [res1, res2] = await Promise.all([
-        fetchLettersBatch(topic, lang, batch1, provider, apiKey, ACTIVE_MODEL, errorMsgs),
-        fetchLettersBatch(topic, lang, batch2, provider, apiKey, ACTIVE_MODEL, errorMsgs),
+        fetchLettersBatch(topic, lang, batch1, apiKey, errorMsgs),
+        fetchLettersBatch(topic, lang, batch2, apiKey, errorMsgs),
       ]);
 
       allQuestions = [...res1, ...res2];
@@ -342,14 +258,11 @@ export const generateQuestions = async (
         topic,
         lang,
         targetLetters,
-        provider,
         apiKey,
-        ACTIVE_MODEL,
         errorMsgs
       );
     }
 
-    console.log("=== SUCCESSFULLY GENERATED PAROLLA QUESTIONS ===", allQuestions);
     return allQuestions;
   } catch (error) {
     console.error("Error in generateQuestions:", error);

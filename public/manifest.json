@@ -1,0 +1,20 @@
+{
+  "name": "Parolla - A'dan Z'ye Kelime Oyunu",
+  "short_name": "Parolla",
+  "description": "Yapay zeka destekli, zamana karşı A'dan Z'ye alfabetik kelime ve genel kültür bilgi yarışması.",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#e2e6e9",
+  "theme_color": "#0f1f3d",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["games", "trivia", "education"],
+  "lang": "tr"
+}
